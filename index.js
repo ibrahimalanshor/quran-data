@@ -40,7 +40,7 @@ async function generateVerses() {
 
     const csv = await json2csv(res.data.data, {
       prependHeader: chapter === 1,
-      excludeKeys: ['surah', 'updated_at']
+      keys: ['id', 'surah_id', 'ayah', 'page', 'quarter_hizb', 'juz', 'manzil', 'arabic', 'latin', 'translation', 'footnotes']
     })
 
     if (!fs.existsSync('output')) {
