@@ -1,6 +1,8 @@
 const axios = require('axios')
 const { json2csv } = require('json-2-csv');
 const fs = require('fs')
+const { checkbox } = require('@inquirer/prompts')
+const progress = require('cli-progress')
 
 const chapterPath = 'https://web-api.qurankemenag.net/quran-surah'
 const versePath = 'https://web-api.qurankemenag.net/quran-ayah'
@@ -23,7 +25,10 @@ async function generateChapters() {
 }
 
 async function generateVerses() {
+  const bar = new progress.SingleBar({}, progress.Presets.shades_classic)
   const chapters = Array.from({ length: 114 }, (_, i) => i + 1)
+
+  bar.start(114, 0)
 
   for (const chapter of chapters) {
     const res = await axios.get(versePath, {
@@ -41,7 +46,8 @@ async function generateVerses() {
 
     const csv = await json2csv(res.data.data, {
       prependHeader: chapter === 1,
-      keys: ['id', 'surah_id', 'ayah', 'page', 'quarter_hizb', 'juz', 'manzil', 'arabic', 'latin', 'translation', 'footnotes']
+      keys: ['id', 'surah_id', 'ayah', 'page', 'quarter_hizb', 'juz', 'manzil', 'arabic', 'latin', 'translation', 'footnotes'],
+      emptyFieldValue: ''
     })
 
     if (!fs.existsSync('output')) {
@@ -49,11 +55,18 @@ async function generateVerses() {
     }
 
     await fs.promises.appendFile('output/verses.csv', csv + '\n')
+
+    bar.increment()
   }
+
+  bar.stop()
 }
 
 async function generateTafsir() {
+  const bar = new progress.SingleBar({}, progress.Presets.shades_classic)
   const verses = Array.from({ length: 6236 }, (_, i) => i + 1)
+
+  bar.start(6236, 0)
 
   for (const verse of verses) {
     const res = await axios.get(`${tafsirPath}/${verse}`, {
@@ -77,10 +90,33 @@ async function generateTafsir() {
 
     await fs.promises.appendFile('output/tafsir.csv', csv + '\n')
 
-    console.log(`verse ${verse} tafsir processed`)
+    bar.increment()
+  }
+
+  bar.stop()
+}
+
+async function main() {
+  const answer = await checkbox({
+    message: 'Pilih data yang ingin diambil',
+    choices: [
+      { name: 'Surah', value: 'chapter' },
+      { name: 'Ayat', value: 'verse' },
+      { name: 'Tafsir', value: 'tafsir' },
+    ]
+  })
+
+  if (answer.includes('surah')) {
+    await generateChapters()
+  }
+
+  if (answer.includes('verse')) {
+    await generateVerses()
+  }
+
+  if (answer.includes('tafsir')) {
+    await generateTafsir()
   }
 }
 
-generateChapters()
-generateVerses()
-generateTafsir()
+main()
